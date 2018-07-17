@@ -17,23 +17,31 @@ One way to get your token is to obtain it here:
 https://api.slack.com/custom-integrations/legacy-tokens
 
 dependencies:
+```
    pip install slacker #https://github.com/os/slacker
+```
 
 usage examples
+```
    python slack_export.py --token=xoxs-123123-123123-4123-0a141234
    python slack_export.py --token=123token --dryRun
    python slack_export.py --token=123token --skipDirectMessages
    python slack_export.py --token=123token --skipDirectMessages --skipPrivateChannels -zip slack_export_1
    python slack_export.py --token=123token --onlySpecifiedPrivateChannels General Random --dryRun
-
+```
 This script is provided in an as-is state and I guarantee no updates or quality of service at this time.
 
 # Recommended related libraries
 
 This is designed to function with 'slack-export-viewer'.
+  ```
   pip install slack-export-viewer
+  ```
 
+Then you can execute the viewer as documented
+```
 slack-export-viewer -z zipArchive.zip
+```
 
 # Enjoy the tool? Want to encourage me to fix your requested issue? :D
 

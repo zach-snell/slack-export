@@ -10,10 +10,12 @@ This user centric history gathering is nice because the official slack data expo
 There may be limitations on what you can export based on the paid status of your slack account.
 
 This use of the API is blessed by Slack : https://get.slack.help/hc/en-us/articles/204897248
+
 " If you want to export the contents of your own private groups and direct messages
 please see our API documentation."
 
 One way to get your token is to obtain it here:
+
 https://api.slack.com/custom-integrations/legacy-tokens
 
 dependencies:

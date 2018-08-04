@@ -108,7 +108,7 @@ def getChannels():
     print("Obtaining Channel Histories: ")
     if dryRun:
         for channel in channels:
-            print(channel['name'].encode("utf-8"))
+            print(channel['name'])
         return
     for channel in channels:
         print("getting history for channel {0}".format(channel['name']))

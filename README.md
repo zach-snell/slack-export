@@ -21,6 +21,7 @@ https://api.slack.com/custom-integrations/legacy-tokens
 ## Dependencies
 ```
 pip install slacker # https://github.com/os/slacker
+pip install pick # https://github.com/wong2/pick
 ```
 
 ## Basic Usage
@@ -30,6 +31,9 @@ python slack_export.py --token xoxs-123...
 
 # List the Channels and DMs available for export
 python slack_export.py --token xoxs-123... --dryRun
+
+# Prompt you to select the Channels and DMs to export
+python slack_export.py --token xoxs-123... --prompt
 
 # Generate a `slack_export.zip` file for use with slack-export-viewer
 python slack_export.py --token xoxs-123... --zip slack_export
@@ -53,6 +57,10 @@ Export Private Channels and Group DMs\
 Export 1:1 DMs\
 (optionally filtered by the given user names)
 
+* `--prompt`\
+Prompt you to select the conversations to export\
+(Any channel/group/user names specified with the other arguments take precedence.)
+
 ### Examples
 ```
 # Export only Public Channels
@@ -75,6 +83,9 @@ python slack_export.py --token xoxs-123... --directMessages jane_smith john_doe
 
 # Export only Public/Private Channels and Group DMs (no 1:1 DMs)
 python slack_export.py --token xoxs-123... --publicChannels --groups
+
+# Export only 1:1 DMs with jane_smith and the Public Channels you select when prompted
+python slack_export.py --token xoxs-123... --directMessages jane_smith --publicChannels --prompt
 ```
 This script is provided in an as-is state and I guarantee no updates or quality of service at this time.
 

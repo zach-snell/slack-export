@@ -6,6 +6,7 @@ import io
 import shutil
 import copy
 from datetime import datetime
+from pick import pick
 
 # fetches the complete message history for a channel/group/im
 #
@@ -105,6 +106,11 @@ def parseMessages( roomDir, messages, roomType ):
 def filterConversationsByName(channelsOrGroups, channelOrGroupNames):
     return [conversation for conversation in channelsOrGroups if conversation['name'] in channelOrGroupNames]
 
+def promptForPublicChannels(channels):
+    channelNames = [channel['name'] for channel in channels]
+    selectedChannels = pick(channelNames, 'Select the Public Channels you want to export:', multi_select=True)
+    return [channels[index] for channelName, index in selectedChannels]
+
 # fetch and write history for all public channels
 def fetchPublicChannels(channels):
     print("Obtaining Channel Histories: ")
@@ -150,6 +156,11 @@ def filterDirectMessagesByUserNameOrId(dms, userNamesOrIds):
     userIds = [userIdsByName.get(userNameOrId, userNameOrId) for userNameOrId in userNamesOrIds]
     return [dm for dm in dms if dm['user'] in userIds]
 
+def promptForDirectMessages(dms):
+    dmNames = [userNamesById.get(dm['user'], dm['user'] + " (name unknown)") for dm in dms]
+    selectedDms = pick(dmNames, 'Select the 1:1 DMs you want to export:', multi_select=True)
+    return [dms[index] for dmName, index in selectedDms]
+
 # fetch and write history for all direct message conversations
 # also known as IMs in the slack API.
 def fetchDirectMessages(dms):
@@ -167,7 +178,12 @@ def fetchDirectMessages(dms):
         messages = getHistory(slack.im, dm['id'])
         parseMessages( dmId, messages, "im" )
         return
-        
+
+def promptForGroups(groups):
+    groupNames = [group['name'] for group in groups]
+    selectedGroups = pick(groupNames, 'Select the Private Channels and Group DMs you want to export:', multi_select=True)
+    return [groups[index] for groupName, index in selectedGroups]
+
 # fetch and write history for specific private channel
 # also known as groups in the slack API.
 def fetchGroups(groups):
@@ -225,12 +241,15 @@ def bootstrapKeyValues():
     getUserMap()
 
 # Returns the conversations to download based on the command-line arguments
-def selectConversations(allConversations, commandLineArg, filter):
+def selectConversations(allConversations, commandLineArg, filter, prompt):
     global args
     if isinstance(commandLineArg, list) and len(commandLineArg) > 0:
         return filter(allConversations, commandLineArg)
     elif commandLineArg != None or not anyConversationsSpecified():
-        return allConversations
+        if args.prompt:
+            return prompt(allConversations)
+        else:
+            return allConversations
     else:
         return []
 
@@ -288,6 +307,12 @@ if __name__ == "__main__":
         metavar='USER_NAME',
         help="export 1:1 DMs with the given users")
 
+    parser.add_argument(
+        '--prompt',
+        action='store_true',
+        default=False,
+        help="prompt you to select the conversations to export")
+
     args = parser.parse_args()
 
     users = []    
@@ -317,17 +342,20 @@ if __name__ == "__main__":
     selectedChannels = selectConversations(
         channels,
         args.publicChannels,
-        filterConversationsByName)
+        filterConversationsByName,
+        promptForPublicChannels)
 
     selectedGroups = selectConversations(
         groups,
         args.groups,
-        filterConversationsByName)
+        filterConversationsByName,
+        promptForGroups)
 
     selectedDms = selectConversations(
         dms,
         args.directMessages,
-        filterDirectMessagesByUserNameOrId)
+        filterDirectMessagesByUserNameOrId,
+        promptForDirectMessages)
 
     if len(selectedChannels) > 0:
         fetchPublicChannels(selectedChannels)

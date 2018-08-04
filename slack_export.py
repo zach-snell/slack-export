@@ -102,9 +102,11 @@ def parseMessages( roomDir, messages, roomType ):
     outFileName = '{room}/{file}.json'.format( room = roomDir, file = currentFileDate )
     writeMessageFile( outFileName, currentMessages )
 
+def filterConversationsByName(channelsOrGroups, channelOrGroupNames):
+    return [conversation for conversation in channelsOrGroups if conversation['name'] in channelOrGroupNames]
 
 # fetch and write history for all public channels
-def getChannels():
+def fetchPublicChannels(channels):
     print("Obtaining Channel Histories: ")
     if dryRun:
         for channel in channels:
@@ -144,18 +146,21 @@ def dumpChannelFile():
     with open('dms.json', 'w') as outFile:
         json.dump( dms , outFile, indent=4)
 
+def filterDirectMessagesByUserNameOrId(dms, userNamesOrIds):
+    userIds = [userIdsByName.get(userNameOrId, userNameOrId) for userNameOrId in userNamesOrIds]
+    return [dm for dm in dms if dm['user'] in userIds]
 
 # fetch and write history for all direct message conversations
 # also known as IMs in the slack API.
-def getDirectMessages():
+def fetchDirectMessages(dms):
     print("Found direct messages (1:1) with the following users:")
 
     if dryRun:
         for dm in dms:
-            print(userIdNameMap.get(dm['user'], dm['user'] + " (name unknown)"))
+            print(userNamesById.get(dm['user'], dm['user'] + " (name unknown)"))
         return
     for dm in dms:
-        name = userIdNameMap.get(dm['user'], dm['user'] + " (name unknown)")
+        name = userNamesById.get(dm['user'], dm['user'] + " (name unknown)")
         print("getting history for direct messages with {0}".format(name))
         dmId = dm['id']
         mkdir(dmId)
@@ -165,19 +170,15 @@ def getDirectMessages():
         
 # fetch and write history for specific private channel
 # also known as groups in the slack API.
-def getPrivateChannels(channelNames = []):
-    augmentedGroups = groups
-    if len(channelNames) != 0:
-        augmentedGroups = [x for x in augmentedGroups if x['name'] in channelNames]
-    
+def fetchGroups(groups):
     print("Getting history for Private Channels and Group Messages")
 
     if dryRun:
-        for group in augmentedGroups:
+        for group in groups:
             print("{0}: ({1} members)".format(group['name'], len(group['members'])))
         return
 
-    for group in augmentedGroups:
+    for group in groups:
         groupDir = group['name']
         mkdir(groupDir)
         messages = []
@@ -187,9 +188,10 @@ def getPrivateChannels(channelNames = []):
 
 # fetch all users for the channel and return a map userId -> userName
 def getUserMap():
-    global userIdNameMap
+    global userNamesById, userIdsByName
     for user in users:
-        userIdNameMap[user['id']] = user['name']
+        userNamesById[user['id']] = user['name']
+        userIdsByName[user['name']] = user['id']
 
 # stores json of user info
 def dumpUserFile():
@@ -222,7 +224,22 @@ def bootstrapKeyValues():
 
     getUserMap()
 
-# This method is used in order to create a empty Channel if you do not export anything but private channels
+# Returns the conversations to download based on the command-line arguments
+def selectConversations(allConversations, commandLineArg, filter):
+    global args
+    if isinstance(commandLineArg, list) and len(commandLineArg) > 0:
+        return filter(allConversations, commandLineArg)
+    elif commandLineArg != None or not anyConversationsSpecified():
+        return allConversations
+    else:
+        return []
+
+# Returns true if any conversations were specified on the command line
+def anyConversationsSpecified():
+    global args
+    return args.publicChannels != None or args.groups != None or args.directMessages != None
+
+# This method is used in order to create a empty Channel if you do not export public channels
 # otherwise, the viewer will error and not show the root screen. Rather than forking the editor, I work with it.
 def dumpDummyChannel():
     channelName = channels[0]['name']
@@ -251,28 +268,25 @@ if __name__ == "__main__":
         help="if dryRun is true, don't fetch/write history only get channel names")
 
     parser.add_argument(
-        '--onlySpecifiedPrivateChannels',
-		default=[],
+        '--publicChannels',
         nargs='*',
-        help="only fetch the specified private channels or group messages")
+        default=None,
+        metavar='CHANNEL_NAME',
+        help="export the given public channels")
 
     parser.add_argument(
-        '--skipPrivateChannels',
-        action='store_true',
-        default=False,
-        help="skip fetching history for private channels, includes group messages.")
+        '--groups',
+        nargs='*',
+        default=None,
+        metavar='GROUP_NAME',
+        help="export the given private channels and group DMs")
 
     parser.add_argument(
-        '--skipChannels',
-        action='store_true',
-        default=False,
-        help="skip fetching history for channels")
-
-    parser.add_argument(
-        '--skipDirectMessages',
-        action='store_true',
-        default=False,
-        help="skip fetching history for directMessages")
+        '--directMessages',
+        nargs='*',
+        default=None,
+        metavar='USER_NAME',
+        help="export 1:1 DMs with the given users")
 
     args = parser.parse_args()
 
@@ -280,7 +294,8 @@ if __name__ == "__main__":
     channels = []
     groups = []
     dms = []
-    userIdNameMap = {}
+    userNamesById = {}
+    userIdsByName = {}
 
     slack = Slacker(args.token)
     testAuth = doTestAuth()
@@ -299,17 +314,30 @@ if __name__ == "__main__":
         dumpUserFile()
         dumpChannelFile()
 
-    if args.onlySpecifiedPrivateChannels:
-        dumpDummyChannel()
-        getPrivateChannels(args.onlySpecifiedPrivateChannels)
-        finalize()
+    selectedChannels = selectConversations(
+        channels,
+        args.publicChannels,
+        filterConversationsByName)
 
-    if not args.skipChannels:
-        getChannels()
+    selectedGroups = selectConversations(
+        groups,
+        args.groups,
+        filterConversationsByName)
 
-    if not args.skipPrivateChannels:
-        getPrivateChannels()
+    selectedDms = selectConversations(
+        dms,
+        args.directMessages,
+        filterDirectMessagesByUserNameOrId)
 
-    if not args.skipDirectMessages:
-        getDirectMessages()
+    if len(selectedChannels) > 0:
+        fetchPublicChannels(selectedChannels)
+
+    if len(selectedGroups) > 0:
+        if len(selectedChannels) == 0:
+            dumpDummyChannel()
+        fetchGroups(selectedGroups)
+
+    if len(selectedDms) > 0:
+        fetchDirectMessages(selectedDms)
+
     finalize()

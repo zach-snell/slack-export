@@ -7,6 +7,7 @@ import shutil
 import copy
 from datetime import datetime
 from pick import pick
+from time import sleep
 
 # fetches the complete message history for a channel/group/im
 #
@@ -32,6 +33,7 @@ def getHistory(pageableObject, channelId, pageSize = 100):
 
         if (response['has_more'] == True):
             lastTimestamp = messages[-1]['ts'] # -1 means last element in a list
+            sleep(1) # Respect the Slack API rate limit
         else:
             break
     return messages
@@ -228,15 +230,19 @@ def bootstrapKeyValues():
     global users, channels, groups, dms
     users = slack.users.list().body['members']
     print("found {0} users ".format(len(users)))
+    sleep(1)
     
     channels = slack.channels.list().body['channels']
     print("found {0} channels ".format(len(channels)))
+    sleep(1)
 
     groups = slack.groups.list().body['groups']
     print("found {0} private channels or group messages".format(len(groups)))
+    sleep(1)
 
     dms = slack.im.list().body['ims']
     print("found {0} unique user direct messages".format(len(dms)))
+    sleep(1)
 
     getUserMap()
 

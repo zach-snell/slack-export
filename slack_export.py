@@ -115,13 +115,15 @@ def promptForPublicChannels(channels):
 
 # fetch and write history for all public channels
 def fetchPublicChannels(channels):
-    print("Obtaining Channel Histories: ")
     if dryRun:
+        print("Public Channels selected for export:")
         for channel in channels:
             print(channel['name'])
+        print()
         return
+
     for channel in channels:
-        print("getting history for channel {0}".format(channel['name']))
+        print("Fetching history for Public Channel: {0}".format(channel['name']))
         channelDir = channel['name']
         mkdir( channelDir )
         messages = getHistory(slack.channels, channel['id'])
@@ -166,15 +168,16 @@ def promptForDirectMessages(dms):
 # fetch and write history for all direct message conversations
 # also known as IMs in the slack API.
 def fetchDirectMessages(dms):
-    print("Found direct messages (1:1) with the following users:")
-
     if dryRun:
+        print("1:1 DMs selected for export:")
         for dm in dms:
             print(userNamesById.get(dm['user'], dm['user'] + " (name unknown)"))
+        print()
         return
+
     for dm in dms:
         name = userNamesById.get(dm['user'], dm['user'] + " (name unknown)")
-        print("getting history for direct messages with {0}".format(name))
+        print("Fetching 1:1 DMs with {0}".format(name))
         dmId = dm['id']
         mkdir(dmId)
         messages = getHistory(slack.im, dm['id'])
@@ -189,18 +192,18 @@ def promptForGroups(groups):
 # fetch and write history for specific private channel
 # also known as groups in the slack API.
 def fetchGroups(groups):
-    print("Getting history for Private Channels and Group Messages")
-
     if dryRun:
+        print("Private Channels and Group DMs selected for export:")
         for group in groups:
-            print("{0}: ({1} members)".format(group['name'], len(group['members'])))
+            print(group['name'])
+        print()
         return
 
     for group in groups:
         groupDir = group['name']
         mkdir(groupDir)
         messages = []
-        print("getting history for private channel {0} with id {1}".format(group['name'], group['id']))
+        print("Fetching history for Private Channel / Group DM: {0}".format(group['name']))
         messages = getHistory(slack.groups, group['id'])
         parseMessages( groupDir, messages, 'group' )
 
@@ -229,19 +232,19 @@ def doTestAuth():
 def bootstrapKeyValues():
     global users, channels, groups, dms
     users = slack.users.list().body['members']
-    print("found {0} users ".format(len(users)))
+    print("Found {0} Users".format(len(users)))
     sleep(1)
     
     channels = slack.channels.list().body['channels']
-    print("found {0} channels ".format(len(channels)))
+    print("Found {0} Public Channels".format(len(channels)))
     sleep(1)
 
     groups = slack.groups.list().body['groups']
-    print("found {0} private channels or group messages".format(len(groups)))
+    print("Found {0} Private Channels or Group DMs".format(len(groups)))
     sleep(1)
 
     dms = slack.im.list().body['ims']
-    print("found {0} unique user direct messages".format(len(dms)))
+    print("Found {0} 1:1 DM conversations\n".format(len(dms)))
     sleep(1)
 
     getUserMap()
@@ -281,43 +284,43 @@ def finalize():
     exit()
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='download slack history')
+    parser = argparse.ArgumentParser(description='Export Slack history')
 
-    parser.add_argument('--token', required=True, help="an api token for a slack user")
-    parser.add_argument('--zip', help="name of a zip file to output as")
+    parser.add_argument('--token', required=True, help="Slack API token")
+    parser.add_argument('--zip', help="Name of a zip file to output as")
 
     parser.add_argument(
         '--dryRun',
         action='store_true',
         default=False,
-        help="if dryRun is true, don't fetch/write history only get channel names")
+        help="List the conversations that will be exported (don't fetch/write history)")
 
     parser.add_argument(
         '--publicChannels',
         nargs='*',
         default=None,
         metavar='CHANNEL_NAME',
-        help="export the given public channels")
+        help="Export the given Public Channels")
 
     parser.add_argument(
         '--groups',
         nargs='*',
         default=None,
         metavar='GROUP_NAME',
-        help="export the given private channels and group DMs")
+        help="Export the given Private Channels / Group DMs")
 
     parser.add_argument(
         '--directMessages',
         nargs='*',
         default=None,
         metavar='USER_NAME',
-        help="export 1:1 DMs with the given users")
+        help="Export 1:1 DMs with the given users")
 
     parser.add_argument(
         '--prompt',
         action='store_true',
         default=False,
-        help="prompt you to select the conversations to export")
+        help="Prompt you to select the conversations to export")
 
     args = parser.parse_args()
 

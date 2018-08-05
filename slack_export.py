@@ -7,34 +7,6 @@ import shutil
 import copy
 from datetime import datetime
 
-# This script finds all channels, private channels and direct messages
-# that your user participates in, downloads the complete history for
-# those converations and writes each conversation out to seperate json files.
-#
-# This user centric history gathering is nice because the official slack data exporter
-# only exports public channels.
-#
-# PS, this only works if your slack team has a paid account which allows for unlimited history.
-#
-# PPS, this use of the API is blessed by Slack.
-# https://get.slack.help/hc/en-us/articles/204897248
-# " If you want to export the contents of your own private groups and direct messages
-# please see our API documentation."
-#
-# get your slack user token at the bottom of this page
-# https://api.slack.com/web
-#
-# dependencies:
-#    pip install slacker #https://github.com/os/slacker
-#
-# usage examples
-#    python slack_export.py --token=xoxs-123123-123123-4123-0a141234
-#    python slack_export.py --token=123token --dryRun
-#    python slack_export.py --token=123token --skipDirectMessages
-#    python slack_export.py --token=123token --skipDirectMessages --skipPrivateChannels -zip slack_export_1
-#    python slack_export.py --token=123token --onlySpecifiedPrivateChannels General Random --dryRun
-
-
 # fetches the complete message history for a channel/group/im
 #
 # pageableObject could be:

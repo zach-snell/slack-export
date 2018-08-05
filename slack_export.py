@@ -241,7 +241,7 @@ def finalize():
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='download slack history')
 
-    parser.add_argument('--token', help="an api token for a slack user")
+    parser.add_argument('--token', required=True, help="an api token for a slack user")
     parser.add_argument('--zip', help="name of a zip file to output as")
 
     parser.add_argument(

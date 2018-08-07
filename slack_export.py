@@ -6,34 +6,8 @@ import io
 import shutil
 import copy
 from datetime import datetime
-
-# This script finds all channels, private channels and direct messages
-# that your user participates in, downloads the complete history for
-# those converations and writes each conversation out to seperate json files.
-#
-# This user centric history gathering is nice because the official slack data exporter
-# only exports public channels.
-#
-# PS, this only works if your slack team has a paid account which allows for unlimited history.
-#
-# PPS, this use of the API is blessed by Slack.
-# https://get.slack.help/hc/en-us/articles/204897248
-# " If you want to export the contents of your own private groups and direct messages
-# please see our API documentation."
-#
-# get your slack user token at the bottom of this page
-# https://api.slack.com/web
-#
-# dependencies:
-#    pip install slacker #https://github.com/os/slacker
-#
-# usage examples
-#    python slack_export.py --token=xoxs-123123-123123-4123-0a141234
-#    python slack_export.py --token=123token --dryRun
-#    python slack_export.py --token=123token --skipDirectMessages
-#    python slack_export.py --token=123token --skipDirectMessages --skipPrivateChannels -zip slack_export_1
-#    python slack_export.py --token=123token --onlySpecifiedPrivateChannels General Random --dryRun
-
+from pick import pick
+from time import sleep
 
 # fetches the complete message history for a channel/group/im
 #
@@ -59,6 +33,7 @@ def getHistory(pageableObject, channelId, pageSize = 100):
 
         if (response['has_more'] == True):
             lastTimestamp = messages[-1]['ts'] # -1 means last element in a list
+            sleep(1) # Respect the Slack API rate limit
         else:
             break
     return messages
@@ -130,16 +105,25 @@ def parseMessages( roomDir, messages, roomType ):
     outFileName = '{room}/{file}.json'.format( room = roomDir, file = currentFileDate )
     writeMessageFile( outFileName, currentMessages )
 
+def filterConversationsByName(channelsOrGroups, channelOrGroupNames):
+    return [conversation for conversation in channelsOrGroups if conversation['name'] in channelOrGroupNames]
+
+def promptForPublicChannels(channels):
+    channelNames = [channel['name'] for channel in channels]
+    selectedChannels = pick(channelNames, 'Select the Public Channels you want to export:', multi_select=True)
+    return [channels[index] for channelName, index in selectedChannels]
 
 # fetch and write history for all public channels
-def getChannels():
-    print("Obtaining Channel Histories: ")
+def fetchPublicChannels(channels):
     if dryRun:
+        print("Public Channels selected for export:")
         for channel in channels:
-            print(channel['name'].encode("utf-8"))
+            print(channel['name'])
+        print()
         return
+
     for channel in channels:
-        print("getting history for channel {0}".format(channel['name']))
+        print("Fetching history for Public Channel: {0}".format(channel['name']))
         channelDir = channel['name']
         mkdir( channelDir )
         messages = getHistory(slack.channels, channel['id'])
@@ -172,52 +156,63 @@ def dumpChannelFile():
     with open('dms.json', 'w') as outFile:
         json.dump( dms , outFile, indent=4)
 
+def filterDirectMessagesByUserNameOrId(dms, userNamesOrIds):
+    userIds = [userIdsByName.get(userNameOrId, userNameOrId) for userNameOrId in userNamesOrIds]
+    return [dm for dm in dms if dm['user'] in userIds]
+
+def promptForDirectMessages(dms):
+    dmNames = [userNamesById.get(dm['user'], dm['user'] + " (name unknown)") for dm in dms]
+    selectedDms = pick(dmNames, 'Select the 1:1 DMs you want to export:', multi_select=True)
+    return [dms[index] for dmName, index in selectedDms]
 
 # fetch and write history for all direct message conversations
 # also known as IMs in the slack API.
-def getDirectMessages():
-    print("Found direct messages (1:1) with the following users:")
-
+def fetchDirectMessages(dms):
     if dryRun:
+        print("1:1 DMs selected for export:")
         for dm in dms:
-            print(userIdNameMap.get(dm['user'], dm['user'] + " (name unknown)"))
+            print(userNamesById.get(dm['user'], dm['user'] + " (name unknown)"))
+        print()
         return
+
     for dm in dms:
-        name = userIdNameMap.get(dm['user'], dm['user'] + " (name unknown)")
-        print("getting history for direct messages with {0}".format(name))
+        name = userNamesById.get(dm['user'], dm['user'] + " (name unknown)")
+        print("Fetching 1:1 DMs with {0}".format(name))
         dmId = dm['id']
         mkdir(dmId)
         messages = getHistory(slack.im, dm['id'])
         parseMessages( dmId, messages, "im" )
         return
-        
+
+def promptForGroups(groups):
+    groupNames = [group['name'] for group in groups]
+    selectedGroups = pick(groupNames, 'Select the Private Channels and Group DMs you want to export:', multi_select=True)
+    return [groups[index] for groupName, index in selectedGroups]
+
 # fetch and write history for specific private channel
 # also known as groups in the slack API.
-def getPrivateChannels(channelNames = []):
-    augmentedGroups = groups
-    if len(channelNames) != 0:
-        augmentedGroups = [x for x in augmentedGroups if x['name'] in channelNames]
-    
-    print("Getting history for Private Channels and Group Messages")
-
+def fetchGroups(groups):
     if dryRun:
-        for group in augmentedGroups:
-            print("{0}: ({1} members)".format(group['name'], len(group['members'])))
+        print("Private Channels and Group DMs selected for export:")
+        for group in groups:
+            print(group['name'])
+        print()
         return
 
-    for group in augmentedGroups:
+    for group in groups:
         groupDir = group['name']
         mkdir(groupDir)
         messages = []
-        print("getting history for private channel {0} with id {1}".format(group['name'], group['id']))
+        print("Fetching history for Private Channel / Group DM: {0}".format(group['name']))
         messages = getHistory(slack.groups, group['id'])
         parseMessages( groupDir, messages, 'group' )
 
 # fetch all users for the channel and return a map userId -> userName
 def getUserMap():
-    global userIdNameMap
+    global userNamesById, userIdsByName
     for user in users:
-        userIdNameMap[user['id']] = user['name']
+        userNamesById[user['id']] = user['name']
+        userIdsByName[user['name']] = user['id']
 
 # stores json of user info
 def dumpUserFile():
@@ -237,20 +232,42 @@ def doTestAuth():
 def bootstrapKeyValues():
     global users, channels, groups, dms
     users = slack.users.list().body['members']
-    print("found {0} users ".format(len(users)))
+    print("Found {0} Users".format(len(users)))
+    sleep(1)
     
     channels = slack.channels.list().body['channels']
-    print("found {0} channels ".format(len(channels)))
+    print("Found {0} Public Channels".format(len(channels)))
+    sleep(1)
 
     groups = slack.groups.list().body['groups']
-    print("found {0} private channels or group messages".format(len(groups)))
+    print("Found {0} Private Channels or Group DMs".format(len(groups)))
+    sleep(1)
 
     dms = slack.im.list().body['ims']
-    print("found {0} unique user direct messages".format(len(dms)))
+    print("Found {0} 1:1 DM conversations\n".format(len(dms)))
+    sleep(1)
 
     getUserMap()
 
-# This method is used in order to create a empty Channel if you do not export anything but private channels
+# Returns the conversations to download based on the command-line arguments
+def selectConversations(allConversations, commandLineArg, filter, prompt):
+    global args
+    if isinstance(commandLineArg, list) and len(commandLineArg) > 0:
+        return filter(allConversations, commandLineArg)
+    elif commandLineArg != None or not anyConversationsSpecified():
+        if args.prompt:
+            return prompt(allConversations)
+        else:
+            return allConversations
+    else:
+        return []
+
+# Returns true if any conversations were specified on the command line
+def anyConversationsSpecified():
+    global args
+    return args.publicChannels != None or args.groups != None or args.directMessages != None
+
+# This method is used in order to create a empty Channel if you do not export public channels
 # otherwise, the viewer will error and not show the root screen. Rather than forking the editor, I work with it.
 def dumpDummyChannel():
     channelName = channels[0]['name']
@@ -267,40 +284,43 @@ def finalize():
     exit()
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='download slack history')
+    parser = argparse.ArgumentParser(description='Export Slack history')
 
-    parser.add_argument('--token', help="an api token for a slack user")
-    parser.add_argument('--zip', help="name of a zip file to output as")
+    parser.add_argument('--token', required=True, help="Slack API token")
+    parser.add_argument('--zip', help="Name of a zip file to output as")
 
     parser.add_argument(
         '--dryRun',
         action='store_true',
         default=False,
-        help="if dryRun is true, don't fetch/write history only get channel names")
+        help="List the conversations that will be exported (don't fetch/write history)")
 
     parser.add_argument(
-        '--onlySpecifiedPrivateChannels',
-		default=[],
+        '--publicChannels',
         nargs='*',
-        help="only fetch the specified private channels or group messages")
+        default=None,
+        metavar='CHANNEL_NAME',
+        help="Export the given Public Channels")
 
     parser.add_argument(
-        '--skipPrivateChannels',
-        action='store_true',
-        default=False,
-        help="skip fetching history for private channels, includes group messages.")
+        '--groups',
+        nargs='*',
+        default=None,
+        metavar='GROUP_NAME',
+        help="Export the given Private Channels / Group DMs")
 
     parser.add_argument(
-        '--skipChannels',
-        action='store_true',
-        default=False,
-        help="skip fetching history for channels")
+        '--directMessages',
+        nargs='*',
+        default=None,
+        metavar='USER_NAME',
+        help="Export 1:1 DMs with the given users")
 
     parser.add_argument(
-        '--skipDirectMessages',
+        '--prompt',
         action='store_true',
         default=False,
-        help="skip fetching history for directMessages")
+        help="Prompt you to select the conversations to export")
 
     args = parser.parse_args()
 
@@ -308,7 +328,8 @@ if __name__ == "__main__":
     channels = []
     groups = []
     dms = []
-    userIdNameMap = {}
+    userNamesById = {}
+    userIdsByName = {}
 
     slack = Slacker(args.token)
     testAuth = doTestAuth()
@@ -327,17 +348,33 @@ if __name__ == "__main__":
         dumpUserFile()
         dumpChannelFile()
 
-    if args.onlySpecifiedPrivateChannels:
-        dumpDummyChannel()
-        getPrivateChannels(args.onlySpecifiedPrivateChannels)
-        finalize()
+    selectedChannels = selectConversations(
+        channels,
+        args.publicChannels,
+        filterConversationsByName,
+        promptForPublicChannels)
 
-    if not args.skipChannels:
-        getChannels()
+    selectedGroups = selectConversations(
+        groups,
+        args.groups,
+        filterConversationsByName,
+        promptForGroups)
 
-    if not args.skipPrivateChannels:
-        getPrivateChannels()
+    selectedDms = selectConversations(
+        dms,
+        args.directMessages,
+        filterDirectMessagesByUserNameOrId,
+        promptForDirectMessages)
 
-    if not args.skipDirectMessages:
-        getDirectMessages()
+    if len(selectedChannels) > 0:
+        fetchPublicChannels(selectedChannels)
+
+    if len(selectedGroups) > 0:
+        if len(selectedChannels) == 0:
+            dumpDummyChannel()
+        fetchGroups(selectedGroups)
+
+    if len(selectedDms) > 0:
+        fetchDirectMessages(selectedDms)
+
     finalize()

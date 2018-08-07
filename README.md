@@ -18,18 +18,74 @@ One way to get your token is to obtain it here:
 
 https://api.slack.com/custom-integrations/legacy-tokens
 
-dependencies:
+## Dependencies
 ```
-   pip install slacker #https://github.com/os/slacker
+pip install slacker # https://github.com/os/slacker
+pip install pick # https://github.com/wong2/pick
 ```
 
-usage examples
+## Basic Usage
 ```
-   python slack_export.py --token=xoxs-123123-123123-4123-0a141234
-   python slack_export.py --token=123token --dryRun
-   python slack_export.py --token=123token --skipDirectMessages
-   python slack_export.py --token=123token --skipDirectMessages --skipPrivateChannels -zip slack_export_1
-   python slack_export.py --token=123token --onlySpecifiedPrivateChannels General Random --dryRun
+# Export all Channels and DMs
+python slack_export.py --token xoxs-123...
+
+# List the Channels and DMs available for export
+python slack_export.py --token xoxs-123... --dryRun
+
+# Prompt you to select the Channels and DMs to export
+python slack_export.py --token xoxs-123... --prompt
+
+# Generate a `slack_export.zip` file for use with slack-export-viewer
+python slack_export.py --token xoxs-123... --zip slack_export
+```
+
+## Selecting Conversations to Export
+
+This script exports **all** Channels and DMs by default.
+
+To export only certain conversations, use one or more of the following arguments:
+
+* `--publicChannels [CHANNEL_NAME [CHANNEL_NAME ...]]`\
+Export Public Channels\
+(optionally filtered by the given channel names)
+
+* `--groups [GROUP_NAME [GROUP_NAME ...]]`\
+Export Private Channels and Group DMs\
+(optionally filtered by the given group names)
+
+* `--directMessages [USER_NAME [USER_NAME ...]]`\
+Export 1:1 DMs\
+(optionally filtered by the given user names)
+
+* `--prompt`\
+Prompt you to select the conversations to export\
+(Any channel/group/user names specified with the other arguments take precedence.)
+
+### Examples
+```
+# Export only Public Channels
+python slack_export.py --token xoxs-123... --publicChannels
+
+# Export only the "General" and "Random" Public Channels
+python slack_export.py --token xoxs-123... --publicChannels General Random
+
+# Export only Private Channels and Group DMs
+python slack_export.py --token xoxs-123... --groups
+
+# Export only the "my_private_channel" Private Channel
+python slack_export.py --token xoxs-123... --groups my_private_channel
+
+# Export only 1:1 DMs
+python slack_export.py --token xoxs-123... --directMessages
+
+# Export only 1:1 DMs with jane_smith and john_doe
+python slack_export.py --token xoxs-123... --directMessages jane_smith john_doe
+
+# Export only Public/Private Channels and Group DMs (no 1:1 DMs)
+python slack_export.py --token xoxs-123... --publicChannels --groups
+
+# Export only 1:1 DMs with jane_smith and the Public Channels you select when prompted
+python slack_export.py --token xoxs-123... --directMessages jane_smith --publicChannels --prompt
 ```
 This script is provided in an as-is state and I guarantee no updates or quality of service at this time.
 

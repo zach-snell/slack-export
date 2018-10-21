@@ -182,7 +182,6 @@ def fetchDirectMessages(dms):
         mkdir(dmId)
         messages = getHistory(slack.im, dm['id'])
         parseMessages( dmId, messages, "im" )
-        return
 
 def promptForGroups(groups):
     groupNames = [group['name'] for group in groups]

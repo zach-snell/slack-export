@@ -1,5 +1,16 @@
-# slack-export
+# Slack Exporter
 A python slack exporter
+
+- This is offered free of charge! 
+- Feel free to donate for coffee though, it **sustains me**.
+
+[![Donate Paypal](https://img.shields.io/badge/Donate-Paypal--Has--Fees-blue.svg?logo=paypal&style=popout)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=RWYM3TQN4XGT4&source=url)
+
+[![Donate Bitcoin](https://img.shields.io/badge/Donate-Bitcoin--No--Fees-yellow.svg?logo=bitcoin&style=popout)](bitcoin:bc1qzyvqlf2m3q9uhy6edp3mldlx4wamtl2snax45srnzc4lsg7uh2dsh6erxe?message=Coffee%20Fund%21)
+
+<img src="ReadmeAssets/bitcoin_donate.PNG?raw=true" alt="bitcoin:bc1qzyvqlf2m3q9uhy6edp3mldlx4wamtl2snax45srnzc4lsg7uh2dsh6erxe" width="200" height="auto">
+
+## Description
 
 The included script 'slack_export.py' works with a provided token to export Channels, Private Channels, Direct Messages and Multi Person Messages.
 
@@ -101,6 +112,4 @@ Then you can execute the viewer as documented
 slack-export-viewer -z zipArchive.zip
 ```
 
-# Enjoy the tool? Want to encourage me to fix your requested issue? :D
 
-[![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=B8HSSU3SDLBRC)

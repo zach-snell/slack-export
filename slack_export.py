@@ -68,6 +68,10 @@ def channelRename( oldRoomName, newRoomName ):
 def writeMessageFile( fileName, messages ):
     directory = os.path.dirname(fileName)
 
+    # if there's no data to write to the file, return
+    if not messages:
+        return
+
     if not os.path.isdir( directory ):
         mkdir( directory )
 

@@ -30,12 +30,16 @@ One way to get your token is to obtain it here:
 https://api.slack.com/custom-integrations/legacy-tokens
 
 ## Dependencies
+
+Use python2 to run this project.
+
 ```
 pip install slacker # https://github.com/os/slacker
 pip install pick # https://github.com/wong2/pick
 ```
 
 ## Basic Usage
+
 ```
 # Export all Channels and DMs
 python slack_export.py --token xoxs-123...

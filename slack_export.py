@@ -36,6 +36,9 @@ def getHistory(pageableObject, channelId, pageSize = 100):
             sleep(1) # Respect the Slack API rate limit
         else:
             break
+
+        messages.sort(key = lambda message: message['ts'])
+
     return messages
 
 
@@ -142,7 +145,7 @@ def dumpChannelFile():
             mpim.append(group)
             continue
         private.append(group)
-    
+
     # slack viewer wants DMs to have a members list, not sure why but doing as they expect
     for dm in dms:
         dm['members'] = [dm['user'], tokenOwnerId]
@@ -234,7 +237,7 @@ def bootstrapKeyValues():
     users = slack.users.list().body['members']
     print("Found {0} Users".format(len(users)))
     sleep(1)
-    
+
     channels = slack.channels.list().body['channels']
     print("Found {0} Public Channels".format(len(channels)))
     sleep(1)
@@ -324,7 +327,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    users = []    
+    users = []
     channels = []
     groups = []
     dms = []

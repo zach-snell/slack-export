@@ -36,6 +36,9 @@ def getHistory(pageableObject, channelId, pageSize = 100):
             sleep(1) # Respect the Slack API rate limit
         else:
             break
+
+    messages.sort(key = lambda message: message['ts'])
+
     return messages
 
 

@@ -8,6 +8,8 @@ import copy
 from datetime import datetime
 from pick import pick
 from time import sleep
+from urllib.parse import urlparse
+import requests
 
 # fetches the complete message history for a channel/group/im
 #
@@ -283,6 +285,62 @@ def dumpDummyChannel():
     outFileName = u'{room}/{file}.json'.format( room = channelName, file = fileDate )
     writeMessageFile(outFileName, [])
 
+def downloadFiles(jsonDirectory, token):
+    """
+    Iterate through all json files, downloads files stored on files.slack.com and replaces the link with a local one
+
+    Args:
+        jsonDirectory: folder where the json files are in, will be searched recursively
+    """
+    print("Starting to download files based on content in %s" % jsonDirectory)
+    for root, subdirs, files in os.walk(jsonDirectory):
+        for filename in files:
+            if not filename.endswith('.json'):
+                continue
+            filePath = os.path.join(root, filename)
+            data = []
+            with open(filePath) as inFile:
+                data = json.load(inFile)
+                for msg in data:
+                    for slackFile in msg.get("files", []):
+                        # Skip deleted files
+                        if slackFile.get("mode") == "tombstone":
+                            continue
+
+                        for key, value in slackFile.items():
+                            # Find all entries referring to files on files.slack.com
+                            if not isinstance(value, str) or not value.startswith("https://files.slack.com/"):
+                                continue
+
+                            url = urlparse(value)
+
+                            localFile = os.path.join("files.slack.com", url.path[1:])  # Need to discard first "/" in URL, because:
+                                # "If a component is an absolute path, all previous components are thrown away and joining continues
+                                # from the absolute path component."
+                            print("Downloading %s, saving to %s" % (url.geturl(), localFile))
+
+                            # Create folder structure
+                            os.makedirs(os.path.dirname(localFile), exist_ok=True)
+
+                            # Check if file already downloaded, with same size
+                            if os.path.exists(localFile) and os.path.getsize(localFile) == slackFile.get("size", -1):
+                                print("Skipping already downloaded file: %s" % localFile)
+                                continue
+
+                            # Download files
+                            headers = {"Authorization": "Bearer %s" % token}
+                            r = requests.get(url.geturl(), headers=headers)
+                            open(localFile, 'wb').write(r.content)
+
+                            # Replace URL in data - suitable for use with slack-export-viewer if files.slack.com is linked
+                            slackFile[key] = "/static/files.slack.com%s" % url.path
+
+            # Save updated data to json file
+            with open(filePath, "w") as outFile:
+                json.dump(data, outFile, indent=4, sort_keys=True)
+
+            print("Replaced all files in %s" % filePath)
+
 def finalize():
     os.chdir('..')
     if zipName:
@@ -329,9 +387,16 @@ if __name__ == "__main__":
         default=False,
         help="Prompt you to select the conversations to export")
 
+    parser.add_argument(
+        '--downloadSlackFiles',
+        action='store_true',
+        default=False,
+        help="Downloads files from files.slack.com for local access, stored in 'files.slack.com' folder. "
+            "Link this folder inside slack-export-viewer/slackviewer/static/ to have it work seamless with slack-export-viewer")
+
     args = parser.parse_args()
 
-    users = []    
+    users = []
     channels = []
     groups = []
     dms = []
@@ -383,5 +448,8 @@ if __name__ == "__main__":
 
     if len(selectedDms) > 0:
         fetchDirectMessages(selectedDms)
+
+    if args.downloadSlackFiles:
+        downloadFiles(outputDirectory, args.token)
 
     finalize()

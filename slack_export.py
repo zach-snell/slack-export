@@ -284,15 +284,15 @@ def dumpDummyChannel():
     outFileName = u'{room}/{file}.json'.format( room = channelName, file = fileDate )
     writeMessageFile(outFileName, [])
 
-def downloadFiles(jsonDirectory, token):
+def downloadFiles(token):
     """
     Iterate through all json files, downloads files stored on files.slack.com and replaces the link with a local one
 
     Args:
         jsonDirectory: folder where the json files are in, will be searched recursively
     """
-    print("Starting to download files based on content in %s" % jsonDirectory)
-    for root, subdirs, files in os.walk(jsonDirectory):
+    print("Starting to download files")
+    for root, subdirs, files in os.walk("."):
         for filename in files:
             if not filename.endswith('.json'):
                 continue
@@ -313,7 +313,7 @@ def downloadFiles(jsonDirectory, token):
 
                             url = urlparse(value)
 
-                            localFile = os.path.join("files.slack.com", url.path[1:])  # Need to discard first "/" in URL, because:
+                            localFile = os.path.join("../files.slack.com", url.path[1:])  # Need to discard first "/" in URL, because:
                                 # "If a component is an absolute path, all previous components are thrown away and joining continues
                                 # from the absolute path component."
                             print("Downloading %s, saving to %s" % (url.geturl(), localFile))
@@ -449,6 +449,6 @@ if __name__ == "__main__":
         fetchDirectMessages(selectedDms)
 
     if args.downloadSlackFiles:
-        downloadFiles(outputDirectory, args.token)
+        downloadFiles(args.token)
 
     finalize()

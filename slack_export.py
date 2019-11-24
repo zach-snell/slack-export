@@ -132,9 +132,8 @@ def fetchPublicChannels(channels):
         return
 
     for channel in channels:
-        channelDir = channel['name'].encode('utf-8')
+        channelDir = channel['name']
         print(u"Fetching history for Public Channel: {0}".format(channelDir))
-        channelDir = channel['name'].encode('utf-8')
         mkdir( channelDir )
         messages = getHistory(slack.channels, channel['id'])
         parseMessages( channelDir, messages, 'channel')

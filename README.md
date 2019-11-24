@@ -100,6 +100,29 @@ python slack_export.py --token xoxs-123... --directMessages jane_smith --publicC
 ```
 This script is provided in an as-is state and I guarantee no updates or quality of service at this time.
 
+## Downloading files and view them inside slack-export-viewer
+
+To download all files hosted on Slack, you can specify the `--downloadSlackFiles` option. The files will be
+downloaded into the `files.slack.com` local folder (inside the current working directory) and re-used for
+all future export (files are compared for size before attempting to download them). This option will also
+replace the URLs inside the export to point to the downloaded files assuming they are accessible with
+`/static/files.slack.com/` from the slack-export-viewer webserver.
+
+### Example including linking files.slack.com with `slack-export-viewer`
+```
+python slack_export.py --token xoxs-123... --zip slack_export --downloadSlackFiles
+
+# Clone slack-export-viewer from github
+cd ..
+git clone https://github.com/hfaran/slack-export-viewer.git
+
+# Link the files.slack.com archive
+ln -s ../../../slack-export/files.slack.com slack-export-viewer/slackviewer/static/files.slack.com
+
+# Run slack-export-viewer with the archive previously created
+./slack-export-viewer/app.py -z slack-export/slack_export.zip
+```
+
 # Recommended related libraries
 
 This is designed to function with 'slack-export-viewer'.

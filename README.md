@@ -72,6 +72,12 @@ Export 1:1 DMs\
 Prompt you to select the conversations to export\
 (Any channel/group/user names specified with the other arguments take precedence.)
 
+* `--excludeArchived`\
+Exclude any channels that have been archived
+
+* `--excludeNonMember`\
+Exclude any public channels for which the user is not a member
+
 ### Examples
 ```
 # Export only Public Channels

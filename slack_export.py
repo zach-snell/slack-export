@@ -8,6 +8,7 @@ import copy
 from datetime import datetime
 from pick import pick
 from time import sleep
+import re
 
 # fetches the complete message history for a channel/group/im
 #
@@ -256,6 +257,17 @@ def bootstrapKeyValues():
 
     getUserMap()
 
+def filterGroups(groups,regex):
+    output_groups = []
+    for group in groups:
+        match = re.search(regex,group['name'])
+        if(match):
+            print(group['name'])
+            output_groups.append(group)
+    for og in output_groups:
+        print(og['name'])
+    return(output_groups)
+
 # Returns the conversations to download based on the command-line arguments
 def selectConversations(allConversations, commandLineArg, filter, prompt):
     global args
@@ -295,6 +307,18 @@ if __name__ == "__main__":
 
     parser.add_argument('--token', required=True, help="Slack API token")
     parser.add_argument('--zip', help="Name of a zip file to output as")
+    
+    parser.add_argument(
+        '--timeout',
+        type = int,
+        default=10,
+        help="length of timeout for the slack interface")
+    
+    parser.add_argument(
+        '--retries',
+        type = int,
+        default=1,
+        help="Number of retries against the Slack API")
 
     parser.add_argument(
         '--dryRun',
@@ -328,6 +352,13 @@ if __name__ == "__main__":
         action='store_true',
         default=False,
         help="Prompt you to select the conversations to export")
+    
+    parser.add_argument(
+        '--regex',
+        nargs='*',
+        default=None,
+        metavar='REGEX',
+        help="Add a regular expression to filter the names of groups that will be recorded")
 
     args = parser.parse_args()
 
@@ -337,8 +368,8 @@ if __name__ == "__main__":
     dms = []
     userNamesById = {}
     userIdsByName = {}
-
-    slack = Slacker(args.token)
+    
+    slack = Slacker(args.token, timeout = args.timeout,rate_limit_retries=args.retries)
     testAuth = doTestAuth()
     tokenOwnerId = testAuth['user_id']
 
@@ -366,6 +397,9 @@ if __name__ == "__main__":
         args.groups,
         filterConversationsByName,
         promptForGroups)
+
+    selectedChannels = filterGroups(selectedChannels,args.regex[0])
+    selectedGroups = filterGroups(selectedGroups,args.regex[0])
 
     selectedDms = selectConversations(
         dms,

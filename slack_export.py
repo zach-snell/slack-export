@@ -45,10 +45,15 @@ def getHistory(pageableObject, channelId, pageSize = 100):
         messages.extend(response['messages'])
 
         if (response['has_more'] == True):
+            sys.stdout.write(".")
+            sys.stdout.flush()
             lastTimestamp = messages[-1]['ts'] # -1 means last element in a list
             sleep(1) # Respect the Slack API rate limit
         else:
             break
+
+    if lastTimestamp != None:
+        print("")
 
     messages.sort(key = lambda message: message['ts'])
 

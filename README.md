@@ -33,6 +33,10 @@ https://api.slack.com/custom-integrations/legacy-tokens
 ```
 pip install slacker # https://github.com/os/slacker
 pip install pick # https://github.com/wong2/pick
+
+# for some issues maybe you need to these two commands
+python -m pip install slackclient
+pip install windows-curses (for windows users)
 ```
 
 ## Basic Usage

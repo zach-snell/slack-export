@@ -1,3 +1,11 @@
+
+# exports
+2020*/
+2019*/
+
+# VSCode settings file
+.vscode/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

@@ -131,7 +131,7 @@ def fetchPublicChannels(channels):
 
     for channel in channels:
         channelDir = channel['name'].encode('utf-8')
-        print(u"Fetching history for Public Channel: {0}".format(channelDir))
+        print("Fetching history for Public Channel: {0}".format(channelDir))
         channelDir = channel['name'].encode('utf-8')
         mkdir( channelDir )
         messages = getHistory(slack.conversations, channel['id'])
@@ -185,7 +185,7 @@ def fetchDirectMessages(dms):
 
     for dm in dms:
         name = userNamesById.get(dm['user'], dm['user'] + " (name unknown)")
-        print(u"Fetching 1:1 DMs with {0}".format(name))
+        print("Fetching 1:1 DMs with {0}".format(name))
         dmId = dm['id']
         mkdir(dmId)
         messages = getHistory(slack.im, dm['id'])
@@ -210,7 +210,7 @@ def fetchGroups(groups):
         groupDir = group['name']
         mkdir(groupDir)
         messages = []
-        print(u"Fetching history for Private Channel / Group DM: {0}".format(group['name']))
+        print("Fetching history for Private Channel / Group DM: {0}".format(group['name']))
         messages = getHistory(slack.conversations, group['id'])
         parseMessages( groupDir, messages, 'group' )
 
@@ -232,30 +232,30 @@ def doTestAuth():
     testAuth = slack.auth.test().body
     teamName = testAuth['team']
     currentUser = testAuth['user']
-    print(u"Successfully authenticated for team {0} and user {1} ".format(teamName, currentUser))
+    print("Successfully authenticated for team {0} and user {1} ".format(teamName, currentUser))
     return testAuth
 
 # Since Slacker does not Cache.. populate some reused lists
 def bootstrapKeyValues():
     global users, channels, groups, dms
     users = slack.users.list().body['members']
-    print(u"Found {0} Users".format(len(users)))
+    print("Found {0} Users".format(len(users)))
     sleep(1)
     
     channels = slack.conversations.list(limit = 1000, types=('public_channel')).body['channels']
-    print(u"Found {0} Public Channels".format(len(channels)))
+    print("Found {0} Public Channels".format(len(channels)))
     sleep(1)
 
     groups = slack.conversations.list(limit = 1000, types=('private_channel', 'mpim')).body['channels']
-    print(u"Found {0} Private Channels or Group DMs".format(len(groups)))
+    print("Found {0} Private Channels or Group DMs".format(len(groups)))
     # need to retrieve channel memberships for the slack-export-viewer to work
     for n in range(len(groups)):
         groups[n]["members"] = slack.conversations.members(limit=1000, channel=groups[n]['id']).body['members']
-        print(u"Retrieved members of {0}".format(groups[n]['name']))
+        print("Retrieved members of {0}".format(groups[n]['name']))
     sleep(1)
 
     dms = slack.conversations.list(limit = 1000, types=('im')).body['channels']
-    print(u"Found {0} 1:1 DM conversations\n".format(len(dms)))
+    print("Found {0} 1:1 DM conversations\n".format(len(dms)))
     sleep(1)
 
     getUserMap()

@@ -5,6 +5,8 @@ import os
 import io
 import shutil
 import copy
+import requests
+import sys
 from datetime import datetime
 from pick import pick
 from time import sleep
@@ -22,20 +24,37 @@ def getHistory(pageableObject, channelId, pageSize = 100):
     lastTimestamp = None
 
     while(True):
-        response = pageableObject.history(
-            channel = channelId,
-            latest    = lastTimestamp,
-            oldest    = 0,
-            limit     = pageSize
-        ).body
+        try:
+            response = pageableObject.history(
+                channel = channelId,
+                latest    = lastTimestamp,
+                oldest    = 0,
+                count     = pageSize
+            ).body
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 429:
+                retryInSeconds = int(e.response.headers['Retry-After'])
+                print(u"Rate limit hit. Retrying in {0} second{1}.".format(retryInSeconds, "s" if retryInSeconds > 1 else ""))
+                sleep(retryInSeconds)
+                response = pageableObject.history(
+                    channel = channelId,
+                    latest    = lastTimestamp,
+                    oldest    = 0,
+                    count     = pageSize
+                ).body
+
 
         messages.extend(response['messages'])
 
         if (response['has_more'] == True):
+            sys.stdout.write(".")
+            sys.stdout.flush()
             lastTimestamp = messages[-1]['ts'] # -1 means last element in a list
             sleep(1) # Respect the Slack API rate limit
         else:
             break
+    if lastTimestamp != None:
+        print("")
 
     messages.sort(key = lambda message: message['ts'])
 

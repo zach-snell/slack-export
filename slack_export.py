@@ -1,4 +1,4 @@
-from slacker import Slacker
+from slacker import Slacker, Conversations
 import json
 import argparse
 import os
@@ -25,23 +25,39 @@ def getHistory(pageableObject, channelId, pageSize = 100):
 
     while(True):
         try:
-            response = pageableObject.history(
-                channel = channelId,
-                latest    = lastTimestamp,
-                oldest    = 0,
-                count     = pageSize
-            ).body
-        except requests.exceptions.HTTPError as e:
-            if e.response.status_code == 429:
-                retryInSeconds = int(e.response.headers['Retry-After'])
-                print(u"Rate limit hit. Retrying in {0} second{1}.".format(retryInSeconds, "s" if retryInSeconds > 1 else ""))
-                sleep(retryInSeconds)
+            if isinstance(pageableObject, Conversations):
+                response = pageableObject.history(
+                    channel=channelId,
+                    latest=lastTimestamp,
+                    oldest=0,
+                    limit=pageSize
+                ).body
+            else:
                 response = pageableObject.history(
                     channel = channelId,
                     latest    = lastTimestamp,
                     oldest    = 0,
                     count     = pageSize
                 ).body
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 429:
+                retryInSeconds = int(e.response.headers['Retry-After'])
+                print(u"Rate limit hit. Retrying in {0} second{1}.".format(retryInSeconds, "s" if retryInSeconds > 1 else ""))
+                sleep(retryInSeconds)
+                if isinstance(pageableObject, Conversations):
+                    response = pageableObject.history(
+                        channel=channelId,
+                        latest=lastTimestamp,
+                        oldest=0,
+                        limit=pageSize
+                    ).body
+                else:
+                    response = pageableObject.history(
+                        channel=channelId,
+                        latest=lastTimestamp,
+                        oldest=0,
+                        count=pageSize
+                    ).body
 
 
         messages.extend(response['messages'])

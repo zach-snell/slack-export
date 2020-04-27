@@ -1,10 +1,7 @@
-from slacker import Slacker
-import json
-import argparse
-import os
-import io
-import shutil
-import copy
+#!/opt/local/bin/python
+# -*- coding: utf-8 -*-
+from  slacker import Slacker
+import json, argparse, os, shutil, re, requests
 from datetime import datetime
 from pick import pick
 from time import sleep
@@ -25,8 +22,7 @@ def getHistory(pageableObject, channelId, pageSize = 100):
         response = pageableObject.history(
             channel = channelId,
             latest    = lastTimestamp,
-            oldest    = 0,
-            count     = pageSize
+            oldest    = 0
         ).body
 
         messages.extend(response['messages'])
@@ -109,8 +105,15 @@ def parseMessages( roomDir, messages, roomType ):
             channelRename( oldRoomPath, newRoomPath )
 
         currentMessages.append( message )
+        files=message.get('files')
+        if files is not None:
+            for f in files:
+                if f.get('mimetype') in mimetypes:
+                    fetchFile(roomDir,f['url_private'],f['url_private_download'])
+
     outFileName = u'{room}/{file}.json'.format( room = roomDir, file = currentFileDate )
     writeMessageFile( outFileName, currentMessages )
+
 
 def filterConversationsByName(channelsOrGroups, channelOrGroupNames):
     return [conversation for conversation in channelsOrGroups if conversation['name'] in channelOrGroupNames]
@@ -123,18 +126,18 @@ def promptForPublicChannels(channels):
 # fetch and write history for all public channels
 def fetchPublicChannels(channels):
     if dryRun:
-        print("Public Channels selected for export:")
-        for channel in channels:
+        print("Channels selected for export:")
+        for channel in sorted(channels,key=lambda c:c['name']):
             print(channel['name'])
         print()
         return
 
     for channel in channels:
-        channelDir = channel['name'].encode('utf-8')
+        channelDir = channel['name'] #.encode('utf-8')
         print(u"Fetching history for Public Channel: {0}".format(channelDir))
-        channelDir = channel['name'].encode('utf-8')
+        channelDir = channel['name'] #.encode('utf-8')
         mkdir( channelDir )
-        messages = getHistory(slack.channels, channel['id'])
+        messages = getHistory(slack.conversations, channel['id'])
         parseMessages( channelDir, messages, 'channel')
 
 # write channels.json file
@@ -178,7 +181,7 @@ def promptForDirectMessages(dms):
 def fetchDirectMessages(dms):
     if dryRun:
         print("1:1 DMs selected for export:")
-        for dm in dms:
+        for dm in sorted(dms,key=lambda d: userNamesById.get(d['user'],'')):
             print(userNamesById.get(dm['user'], dm['user'] + " (name unknown)"))
         print()
         return
@@ -186,7 +189,7 @@ def fetchDirectMessages(dms):
     for dm in dms:
         name = userNamesById.get(dm['user'], dm['user'] + " (name unknown)")
         print(u"Fetching 1:1 DMs with {0}".format(name))
-        dmId = dm['id']
+        dmId = name #dmId = dm['id']
         mkdir(dmId)
         messages = getHistory(slack.im, dm['id'])
         parseMessages( dmId, messages, "im" )
@@ -201,7 +204,7 @@ def promptForGroups(groups):
 def fetchGroups(groups):
     if dryRun:
         print("Private Channels and Group DMs selected for export:")
-        for group in groups:
+        for group in sorted(groups,key=lambda g: g['name']):
             print(group['name'])
         print()
         return
@@ -221,6 +224,17 @@ def getUserMap():
         userNamesById[user['id']] = user['name']
         userIdsByName[user['name']] = user['id']
 
+# fetch a file from url_private_download
+def fetchFile(baseDir,privateUrl,downloadUrl):
+    m=re.findall(r'[^/]+',privateUrl)
+    mkdir("%s/%s" %(baseDir,m[-2]))
+    fileName="%s/%s" %(baseDir,"/".join(m[-2:]))
+    r=requests.get(downloadUrl,stream=True,headers={'Authorization':'Bearer %s' % args.token})
+    if r.status_code == requests.codes.ok:
+        o=open(fileName, 'wb')
+        o.write(r.content)
+        o.close()
+
 # stores json of user info
 def dumpUserFile():
     #write to user file, any existing file needs to be overwritten.
@@ -237,24 +251,36 @@ def doTestAuth():
 
 # Since Slacker does not Cache.. populate some reused lists
 def bootstrapKeyValues():
-    global users, channels, groups, dms
+    global users, channels, groups, dms, excluded
     users = slack.users.list().body['members']
-    print(u"Found {0} Users".format(len(users)))
-    sleep(1)
-    
-    channels = slack.channels.list().body['channels']
-    print(u"Found {0} Public Channels".format(len(channels)))
-    sleep(1)
-
-    groups = slack.groups.list().body['groups']
-    print(u"Found {0} Private Channels or Group DMs".format(len(groups)))
-    sleep(1)
-
-    dms = slack.im.list().body['ims']
-    print(u"Found {0} 1:1 DM conversations\n".format(len(dms)))
+    print(u"Found {0} Users, including {1}\n".format(len(users),' , '.join(sorted([x['profile']['email'] for x in filter(lambda y: 'email' in y['profile'].keys(),users) ]))))
     sleep(1)
 
     getUserMap()
+
+    conversations = slack.conversations.list(types='public_channel, private_channel, mpim, im').body['channels']
+    print(u"Found {0} conversations, including:\n".format(len(conversations)))
+    sleep(1)
+
+    channels = list(filter(lambda y:  y.get('is_channel',False) and y['name'] not in excluded ,conversations))
+    print(u" - {0} {2}Channels: {1}\n"
+          .format(len(channels),
+                  ' , '.join(sorted(["%s%s"
+                                     %( x['is_private'] and '[prv] ' or (x['is_shared'] and '[shr]' or ''),
+                                        x['name']) for x in channels if x['name'] not in excluded])),
+                  excluded is None and "" or "(not excluded) "))
+    sleep(1)
+
+    groups = list(filter(lambda y: y.get('is_group',False) ,conversations))
+    print(u" - {0} Private Channels or Group DMs: {1}\n"
+          .format(len(groups),
+                  ' , '.join(sorted(["%s%s" %(x['is_mpim'] and '[people]' or '',x['name']) for x in groups]))))
+    sleep(1)
+
+    dms = list(filter(lambda y: y.get('is_im',False) ,conversations))
+    print(u" - {0} 1:1 DM conversations with {1}\n".format(len(dms),
+                                                           ' , '.join(sorted([userNamesById[x['user']] for x in dms]))))
+    sleep(1)
 
 # Returns the conversations to download based on the command-line arguments
 def selectConversations(allConversations, commandLineArg, filter, prompt):
@@ -294,7 +320,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Export Slack history')
 
     parser.add_argument('--token', required=True, help="Slack API token")
-    parser.add_argument('--zip', help="Name of a zip file to output as")
+    parser.add_argument('--zip', nargs='?', default='', help="Name of a zip file to output as")
 
     parser.add_argument(
         '--dryRun',
@@ -329,12 +355,28 @@ if __name__ == "__main__":
         default=False,
         help="Prompt you to select the conversations to export")
 
+    parser.add_argument(
+        '--excluded',
+        nargs='*',
+        default=None,
+        metavar='CONVERSATIONS_TO_EXCLUDE',
+        help="Don't backup these conversations")
+
+    parser.add_argument(
+        '--getAttachmentTypes',
+        nargs='*',
+        default=[],
+        metavar='MIMETYPES_TO_DOWNLOAD',
+        help="Download also attached content of these mime types")
+
     args = parser.parse_args()
 
     users = []    
     channels = []
     groups = []
     dms = []
+    msgDeletions=[]
+    exclusions=[]
     userNamesById = {}
     userIdsByName = {}
 
@@ -342,14 +384,16 @@ if __name__ == "__main__":
     testAuth = doTestAuth()
     tokenOwnerId = testAuth['user_id']
 
-    bootstrapKeyValues()
-
     dryRun = args.dryRun
-    zipName = args.zip
+    excluded = args.excluded
+    mimetypes = args.getAttachmentTypes
+
+    bootstrapKeyValues()
 
     outputDirectory = "{0}-slack_export".format(datetime.today().strftime("%Y%m%d-%H%M%S"))
     mkdir(outputDirectory)
     os.chdir(outputDirectory)
+    zipName = "{0}.zip".format(outputDirectory) if args.zip == '' else args.zip
 
     if not dryRun:
         dumpUserFile()

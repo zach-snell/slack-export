@@ -8,6 +8,9 @@ import copy
 from datetime import datetime
 from pick import pick
 from time import sleep
+import requests
+
+fileToken = False
 
 # fetches the complete message history for a channel/group/im
 #
@@ -107,6 +110,20 @@ def parseMessages( roomDir, messages, roomType ):
             oldRoomPath = message['old_name']
             newRoomPath = roomDir
             channelRename( oldRoomPath, newRoomPath )
+
+        global fileToken
+
+        if fileToken and 'files' in message:
+            for f in message['files']:
+                if 'url_private_download' in f:
+                    path = os.path.join(roomDir, currentFileDate, f['id'])
+                    mkdir(path)
+                    filename = os.path.join(path, f['name'])
+                    with requests.get(f['url_private_download'] + '?t=' + fileToken, stream=True) as r:
+                        r.raise_for_status()
+                        r.raw.decode_content = True
+                        with open(filename, 'wb') as f:
+                            shutil.copyfileobj(r.raw, f)
 
         currentMessages.append( message )
     outFileName = u'{room}/{file}.json'.format( room = roomDir, file = currentFileDate )
@@ -295,6 +312,7 @@ if __name__ == "__main__":
 
     parser.add_argument('--token', required=True, help="Slack API token")
     parser.add_argument('--zip', help="Name of a zip file to output as")
+    parser.add_argument('--fileToken', help="To download files supply a file token here (obtained by exporting under https://<your workspace>.slack.com/services/export)")
 
     parser.add_argument(
         '--dryRun',
@@ -346,6 +364,7 @@ if __name__ == "__main__":
 
     dryRun = args.dryRun
     zipName = args.zip
+    fileToken = args.fileToken
 
     outputDirectory = "{0}-slack_export".format(datetime.today().strftime("%Y%m%d-%H%M%S"))
     mkdir(outputDirectory)

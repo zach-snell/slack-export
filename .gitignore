@@ -102,3 +102,6 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+20200413-233156-slack_export.zip
+README-giacomo.md

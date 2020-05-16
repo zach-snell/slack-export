@@ -253,7 +253,11 @@ def doTestAuth():
 def bootstrapKeyValues():
     global users, channels, groups, dms, excluded
     users = slack.users.list().body['members']
-    print(u"Found {0} Users, including {1}\n".format(len(users),' , '.join(sorted([x['profile']['email'] for x in filter(lambda y: 'email' in y['profile'].keys(),users) ]))))
+    print(u"Found {0} Users, including {1}\n"
+          .format(len(users),
+                  ' , '.join(sorted([x['profile']['email']for x in filter(lambda y: 'email' in y['profile'].keys(),users) ]))
+                  )
+          )
     sleep(1)
 
     getUserMap()
@@ -267,17 +271,18 @@ def bootstrapKeyValues():
           .format(len(channels),
                   ' , '.join(sorted(["%s%s"
                                      %( x['is_private'] and '[prv] ' or (x['is_shared'] and '[shr]' or ''),
-                                        x['name']) for x in channels if x['name'] not in excluded])),
+                                        x['name']) for x in channels if x['name'] not in excluded])
+                             ),
                   excluded is None and "" or "(not excluded) "))
     sleep(1)
 
-    groups = list(filter(lambda y: y.get('is_group',False) ,conversations))
+    groups = list(filter(lambda y: y.get('is_group',False) and y['name'] not in excluded ,conversations))
     print(u" - {0} Private Channels or Group DMs: {1}\n"
           .format(len(groups),
                   ' , '.join(sorted(["%s%s" %(x['is_mpim'] and '[people]' or '',x['name']) for x in groups]))))
     sleep(1)
 
-    dms = list(filter(lambda y: y.get('is_im',False) ,conversations))
+    dms = list(filter(lambda y: y.get('is_im',False) and userNamesById.get(y['user']) not in excluded,conversations))
     print(u" - {0} 1:1 DM conversations with {1}\n".format(len(dms),
                                                            ' , '.join(sorted([userNamesById[x['user']] for x in dms]))))
     sleep(1)
@@ -303,7 +308,7 @@ def anyConversationsSpecified():
 # This method is used in order to create a empty Channel if you do not export public channels
 # otherwise, the viewer will error and not show the root screen. Rather than forking the editor, I work with it.
 def dumpDummyChannel():
-    channelName = channels[0]['name']
+    channelName = 'dummychannel' # TODO REMOVE channels[0]['name']
     mkdir( channelName )
     fileDate = '{:%Y-%m-%d}'.format(datetime.today())
     outFileName = u'{room}/{file}.json'.format( room = channelName, file = fileDate )

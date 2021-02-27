@@ -1,4 +1,4 @@
-from slacker import Slacker
+from slack_sdk import WebClient
 import json
 import argparse
 import os
@@ -17,6 +17,50 @@ from time import sleep
 # slack.im
 #
 # channelId is the id of the channel/group/im you want to download history for.
+
+# Create wrapper classes for using slack_sdk in place of slacker
+class Slacker_Wrapper:
+    def __init__(self, token):
+        self.client = WebClient(token=token)
+        self.channels = self.Convo(self.client, "public_channel")
+        self.groups = self.Convo(self.client, "private_channel")
+        self.im = self.Convo(self.client, "im")
+        self.auth = self.Auth(self.client)
+        self.users = self.Users(self.client)
+    
+    class Auth:
+        def __init__ (self, webclient):
+            self.client = webclient
+        
+        def test(self):
+            return self.client.auth_test()
+    
+    class Convo:
+        def __init__ (self, webclient, types):
+            self.client = webclient
+            self.types = types
+
+        def history(self, channel, latest, oldest, count):
+            return self.client.conversations_history(channel=channel, latest=latest, oldest=oldest, count=count)
+        
+        def list(self):
+            return self.client.conversations_list(types=self.types)
+    
+    class Users:
+        def __init__(self, webclient):
+            self.client = webclient
+        
+        def list(self):
+            return self.client.users_list()
+    
+    class Channels:
+        def __init__(self, webclient):
+            self.client = webclient
+        
+        def list(self):
+            return self.client.users_list()
+
+
 def getHistory(pageableObject, channelId, pageSize = 100):
     messages = []
     lastTimestamp = None
@@ -27,7 +71,7 @@ def getHistory(pageableObject, channelId, pageSize = 100):
             latest    = lastTimestamp,
             oldest    = 0,
             count     = pageSize
-        ).body
+        ).data
 
         messages.extend(response['messages'])
 
@@ -229,7 +273,7 @@ def dumpUserFile():
 
 # get basic info about the slack channel to ensure the authentication token works
 def doTestAuth():
-    testAuth = slack.auth.test().body
+    testAuth = slack.auth.test().data
     teamName = testAuth['team']
     currentUser = testAuth['user']
     print(u"Successfully authenticated for team {0} and user {1} ".format(teamName, currentUser))
@@ -238,19 +282,19 @@ def doTestAuth():
 # Since Slacker does not Cache.. populate some reused lists
 def bootstrapKeyValues():
     global users, channels, groups, dms
-    users = slack.users.list().body['members']
+    users = slack.users.list().data['members']
     print(u"Found {0} Users".format(len(users)))
     sleep(1)
     
-    channels = slack.channels.list().body['channels']
+    channels = slack.channels.list().data['channels']
     print(u"Found {0} Public Channels".format(len(channels)))
     sleep(1)
 
-    groups = slack.groups.list().body['groups']
+    groups = slack.groups.list().data['channels']
     print(u"Found {0} Private Channels or Group DMs".format(len(groups)))
     sleep(1)
 
-    dms = slack.im.list().body['ims']
+    dms = slack.im.list().data['channels']
     print(u"Found {0} 1:1 DM conversations\n".format(len(dms)))
     sleep(1)
 
@@ -338,7 +382,7 @@ if __name__ == "__main__":
     userNamesById = {}
     userIdsByName = {}
 
-    slack = Slacker(args.token)
+    slack = Slacker_Wrapper(args.token)
     testAuth = doTestAuth()
     tokenOwnerId = testAuth['user_id']
 

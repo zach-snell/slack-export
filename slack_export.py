@@ -37,11 +37,9 @@ def getHistory(pageableObject, channelId, pageSize = 100):
 
     return messages
 
-
 def mkdir(directory):
     if not os.path.isdir(directory):
         os.makedirs(directory)
-
 
 # create datetime object from slack timestamp ('ts') string
 def parseTimeStamp( timeStamp ):
@@ -52,7 +50,6 @@ def parseTimeStamp( timeStamp ):
         else:
             return datetime.utcfromtimestamp( float(t_list[0]) )
 
-
 # move channel files from old directory to one with new channel name
 def channelRename( oldRoomName, newRoomName ):
     # check if any files need to be moved
@@ -62,7 +59,6 @@ def channelRename( oldRoomName, newRoomName ):
     for fileName in os.listdir( oldRoomName ):
         shutil.move( os.path.join( oldRoomName, fileName ), newRoomName )
     os.rmdir( oldRoomName )
-
 
 def writeMessageFile( fileName, messages ):
     directory = os.path.dirname(fileName)
@@ -76,7 +72,6 @@ def writeMessageFile( fileName, messages ):
 
     with open(fileName, 'w') as outFile:
         json.dump( messages, outFile, indent=4)
-
 
 # parse messages by date
 def parseMessages( roomDir, messages, roomType ):
@@ -113,7 +108,6 @@ def parseMessages( roomDir, messages, roomType ):
 
     outFileName = u'{room}/{file}.json'.format( room = roomDir, file = currentFileDate )
     writeMessageFile( outFileName, currentMessages )
-
 
 def filterConversationsByName(channelsOrGroups, channelOrGroupNames):
     return [conversation for conversation in channelsOrGroups if conversation['name'] in channelOrGroupNames]
@@ -191,7 +185,7 @@ def fetchDirectMessages(dms):
         print(u"Fetching 1:1 DMs with {0}".format(name))
         dmId = name #dmId = dm['id']
         mkdir(dmId)
-        messages = getHistory(slack.im, dm['id'])
+        messages = getHistory(slack.conversations, dm['id'])
         parseMessages( dmId, messages, "im" )
 
 def promptForGroups(groups):
@@ -214,7 +208,7 @@ def fetchGroups(groups):
         mkdir(groupDir)
         messages = []
         print(u"Fetching history for Private Channel / Group DM: {0}".format(group['name']))
-        messages = getHistory(slack.groups, group['id'])
+        messages = getHistory(slack.conversations, group['id'])
         parseMessages( groupDir, messages, 'group' )
 
 # fetch all users for the channel and return a map userId -> userName

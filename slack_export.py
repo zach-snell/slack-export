@@ -23,7 +23,7 @@ class Slacker_Wrapper:
     def __init__(self, token):
         self.client = WebClient(token=token)
         self.channels = self.Convo(self.client, "public_channel")
-        self.groups = self.Convo(self.client, "private_channel, mpim")
+        self.groups = self.Convo(self.client, "private_channel,mpim")
         self.im = self.Convo(self.client, "im")
         self.auth = self.Auth(self.client)
         self.users = self.Users(self.client)

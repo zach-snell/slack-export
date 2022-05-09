@@ -1,6 +1,6 @@
 #!/opt/local/bin/python
 # -*- coding: utf-8 -*-
-from  slacker import Slacker
+from slacker import Slacker
 import json, argparse, os, shutil, re, requests
 from datetime import datetime
 from pick import pick
@@ -243,6 +243,16 @@ def doTestAuth():
     print(u"Successfully authenticated for team {0} and user {1} ".format(teamName, currentUser))
     return testAuth
 
+def getPaginatedConversations():
+    crsr=None
+    cnvs=[]
+    while crsr!='':
+        start=slack.conversations.list(types='public_channel,private_channel,mpim,im',cursor=crsr)
+        cnvs += start.body['channels']
+        crsr=start.body['response_metadata'].get('next_cursor',None)
+    return cnvs
+
+
 # Since Slacker does not Cache.. populate some reused lists
 def bootstrapKeyValues():
     global users, channels, groups, dms, excluded
@@ -256,7 +266,7 @@ def bootstrapKeyValues():
 
     getUserMap()
 
-    conversations = slack.conversations.list(types='public_channel, private_channel, mpim, im').body['channels']
+    conversations = getPaginatedConversations()
     print(u"Found {0} conversations, including:\n".format(len(conversations)))
     sleep(1)
 

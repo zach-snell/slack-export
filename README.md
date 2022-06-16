@@ -12,7 +12,7 @@ A python slack exporter
 
 ## Description
 
-The included script 'slack_export.py' works with a provided token to export Channels, Private Channels, Direct Messages and Multi Person Messages.
+The included script `slack_export.py` works with a provided token to export Channels, Private Channels, Direct Messages and Multi Person Messages.
 
 This script finds all channels, private channels and direct messages that your user participates in, downloads the complete history for those converations and writes each conversation out to seperate json files.
 

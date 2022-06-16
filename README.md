@@ -72,6 +72,12 @@ Export 1:1 DMs\
 Prompt you to select the conversations to export\
 (Any channel/group/user names specified with the other arguments take precedence.)
 
+* `--getAttachmentTypes`\
+Please download message attaachments when their mime type is in this list
+
+* `--excluded`\
+Channels to be excluded from export
+
 ### Examples
 ```
 # Export only Public Channels
